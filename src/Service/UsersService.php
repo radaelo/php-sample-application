@@ -4,6 +4,7 @@ namespace Service;
 
 use Entity\User;
 use PDO;
+use PDOException;
 
 class UsersService
 {
@@ -16,15 +17,19 @@ class UsersService
 
     public function getLastJoined(): array
     {
-        return $this->db->query(
+        $stmt = $this->db->query(
             "SELECT id, joined, name FROM user ORDER BY joined DESC LIMIT 10"
-        )->fetchAll(PDO::FETCH_CLASS, User::class);
+        );
+        return $stmt->fetchAll(PDO::FETCH_CLASS, User::class);
     }
 
     public function getById(string $id): ?User
     {
-        $user = $this->db->query("SELECT id, joined, name FROM user WHERE id = " . $this->db->quote($id))->fetchObject(User::class);
-
-        return ($user === false) ? null: $user;
+        $stmt = $this->db->prepare("SELECT id, joined, name FROM user WHERE id = :id");
+        $stmt->bindParam(':id', $id, PDO::PARAM_STR);
+        $stmt->execute();
+        $stmt->setFetchMode(PDO::FETCH_CLASS, User::class);
+        $user = $stmt->fetch();
+        return ($user === false) ? null : $user;
     }
 }

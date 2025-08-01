@@ -1,0 +1,48 @@
+FROM php:7.4-apache
+
+RUN apt-get update && apt-get install -y \
+    git unzip libpng-dev libzip-dev \
+    && docker-php-ext-install pdo pdo_mysql zip
+
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+RUN a2enmod rewrite && a2enmod deflate
+ENV APACHE_DOCUMENT_ROOT /var/www/html/web
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+
+COPY config-dev/vhost.conf /etc/apache2/sites-available/000-default.conf
+RUN ln -s /var/www/html/config-dev /var/www/html/config
+
+WORKDIR /var/www/html
+COPY . .
+
+# Corregir encoding
+RUN find . -type f -name "*.php" -exec sed -i '1s/^\xEF\xBB\xBF//' {} \;
+
+# Instalar dependencias
+RUN composer update --no-dev && \
+    composer dump-autoload --optimize
+
+# Crear db-connection.php
+RUN echo "<?php\n" \
+    "\$host = getenv('DB_HOST') ?: 'db';\n" \
+    "\$dbname = getenv('DB_NAME') ?: 'sample';\n" \
+    "\$user = getenv('DB_USER') ?: 'sampleuser';\n" \
+    "\$pass = getenv('DB_PASSWORD') ?: 'samplepass';\n" \
+    "return new PDO(\"mysql:host=\$host;dbname=\$dbname;charset=utf8mb4\", \$user, \$pass, [\n" \
+    "    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,\n" \
+    "    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,\n" \
+    "    PDO::ATTR_PERSISTENT => true\n" \
+    "]);" > config-dev/db-connection.php
+
+# Crear directorios y asignar permisos
+RUN mkdir -p /var/www/html/logs /var/www/html/dic /var/lib/php/sessions && \
+    touch /var/www/html/logs/error.log && \
+    chown -R www-data:www-data /var/www/html && \
+    chmod -R 775 /var/www/html/logs /var/www/html/dic
+
+# Verificar que el archivo se creó
+RUN ls -la /var/www/html/config-dev/
+
+EXPOSE 80

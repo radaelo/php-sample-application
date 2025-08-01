@@ -1,29 +1,37 @@
 <?php
 
-$tweet = (require "dic/tweets.php")->getById($_GET["id"]);
+require __DIR__ . '/../bootstrap.php';
+
+function base_url($path = '') {
+    $scheme = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    return $scheme . '://' . $_SERVER['HTTP_HOST'] . '/' . ltrim($path, '/');
+}
+
+$id = filter_input(INPUT_GET, 'id', FILTER_SANITIZE_STRING);
+$user_param = filter_input(INPUT_GET, 'user', FILTER_SANITIZE_STRING);
+
+$tweet = (require __DIR__ . '/../dic/tweets.php')->getById($id);
 
 if ($tweet === null) {
     http_response_code(404);
     return;
 }
 
-if ($tweet->userId !== $_GET["user"]) {
-    // Redirect to the correct URL, this is the case if the user has been manually modified
+if ($tweet->userId !== $user_param) {
     http_response_code(301);
-    header("Location: /$tweet->userId/status/$_GET[id]");
+    header("Location: " . base_url("$tweet->userId/status/$id"));
     exit;
 }
 
-switch (require "dic/negotiated_format.php") {
+switch (require __DIR__ . '/../dic/negotiated_format.php') {
     case "text/html":
         (new Views\Layout(
-            "@$_GET[user] - \"$tweet->message\"",
+            "@$user_param - \"$tweet->message\"",
             new Views\Tweets\Page(
-                (require "dic/users.php")->getById($_GET["user"]),
+                (require __DIR__ . '/../dic/users.php')->getById($user_param),
                 $tweet
             )
         ))();
-
         exit;
 
     case "application/json":

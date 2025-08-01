@@ -1,21 +1,25 @@
 <?php
 
-$user = (require "dic/users.php")->getById($_GET["id"]);
+require __DIR__ . '/../bootstrap.php';
+
+$id = filter_input(INPUT_GET, 'id', FILTER_SANITIZE_STRING);
+
+$user = (require __DIR__ . '/../dic/users.php')->getById($id);
 
 if ($user === null) {
     http_response_code(404);
     return;
 }
 
-$tweetsService = (require "dic/tweets.php");
+$tweetsService = (require __DIR__ . '/../dic/tweets.php');
 
-$tweets = $tweetsService->getLastByUser($_GET["id"]);
-$tweetsCount = $tweetsService->getTweetsCount($_GET["id"]);
+$tweets = $tweetsService->getLastByUser($id);
+$tweetsCount = $tweetsService->getTweetsCount($id);
 
-switch (require "dic/negotiated_format.php") {
+switch (require __DIR__ . '/../dic/negotiated_format.php') {
     case "text/html":
         (new Views\Layout(
-            "Tweets from @$_GET[id]",
+            "Tweets from @$id",
             new Views\Tweets\Listing($user, $tweets, $tweetsCount)
         ))();
         exit;
