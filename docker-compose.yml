@@ -1,8 +1,7 @@
+version: '3.8'
 services:
   db:
-    build:
-      context: .
-      dockerfile: Dockerfile.db
+    image: radaelo/php-sample-db:latest
     environment:
       MYSQL_ROOT_PASSWORD: rootpass
       MYSQL_DATABASE: sample
@@ -18,9 +17,7 @@ services:
       retries: 10
 
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile.web
+    image: radaelo/php-sample-web:latest
     ports:
       - "80:80"
     environment:
